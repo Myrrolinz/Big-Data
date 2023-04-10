@@ -7,13 +7,14 @@ import numpy as np
 import shutil
 from config import *
 
-
+# 测试时间
 def time_test(desc:str, handler:Callable, *args, **kwargs):
     start = time.time()
     rtn = handler(*args, **kwargs)
     print(f"{desc}: {time.time() - start: .2f}s")
     return rtn
 
+# 读入文件
 def read_data(filename:str, batch_size:int=-1):
     """
     read graph data from `filename`
@@ -31,7 +32,7 @@ def read_data(filename:str, batch_size:int=-1):
             edges.append((src, des))
             count += 1
             if (count == batch_size):
-                yield edges, maxn
+                yield edges, maxn # 返回边和最大节点
                 edges = []
                 count = 0
     yield edges, maxn
