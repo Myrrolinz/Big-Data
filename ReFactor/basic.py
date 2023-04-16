@@ -43,7 +43,7 @@ def load_graph() -> Graph:
     links = []
     # 【注意改路径！】
     print(DATA_IN)
-    with open(DATA_IN, "r", encoding="utf-16") as file:
+    with open("D:\LessonProjects\Big-Data\Data\data.txt", "r", encoding="utf-16") as file:
         for line in file:
             src, dst = map(int, line.split())
             # src, dst = line.strip().split()

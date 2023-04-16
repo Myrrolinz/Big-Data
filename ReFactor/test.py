@@ -1,5 +1,5 @@
 from cgi import test
-from basic import Graph, read_graph
+from basic import Graph, load_graph
 from stripes import SubGraph, load_outds_by_range, load_ginfo
 from utils import read_data
 from config import *
@@ -46,7 +46,7 @@ def test_outd():
     test whether outd.data is correct.
     Case cannot be found: outd.data is longer.
     """
-    graph = read_graph()
+    graph = load_graph()
     outds = load_outds_by_range(1, graph.nnodes)
     n = 0
     for i, p in enumerate(list(zip(graph.out_degrees[1:], outds))):  # graph' saving begins from 0
@@ -73,7 +73,7 @@ def test_blocks():
         merge_dict(in_edges, sgraph.in_edges)
         dsts = list(sgraph.in_edges.keys())
         print(f"block_{i} has dsts from {dsts[0]} to {dsts[-1]} (not successive)")
-    graph = read_graph()
+    graph = load_graph()
     in_edges_c = {}
     for i, d in enumerate(graph.in_edges[1:]):
         if len(d) > 0:
