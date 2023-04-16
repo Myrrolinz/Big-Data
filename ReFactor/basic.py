@@ -6,8 +6,8 @@ from utils import save_result, time_test, read_data, setup
 
 class Graph:
     """
-    Adjacency List
-    node begins from 1
+    用稀疏矩阵来存储数据：src、指向src的边、出度
+    此结构方便计算
     """
     def __init__(self, nnodes, edges) -> None:
         self.nnodes = nnodes # 图中节点的数量
@@ -33,10 +33,31 @@ class Graph:
         
 
 
-def read_graph() -> Graph:
-    edges, nnodes = next(read_data(DATA_IN))
-    return Graph(nnodes, edges)
+# def read_graph() -> Graph:
+#     edges, nnodes = next(read_data(DATA_IN))
+#     return Graph(nnodes, edges)
 
+def load_graph() -> Graph:
+    # 读入数据
+    # Read data from dataset
+    links = []
+    # 【注意改路径！】
+    print(DATA_IN)
+    with open(DATA_IN, "r", encoding="utf-16") as file:
+        for line in file:
+            src, dst = map(int, line.split())
+            # src, dst = line.strip().split()
+            links.append((src, dst))
+
+        # Get unique list of nodes
+        max_both = -1
+        for i in links:
+            max_both = max(max_both, i[0], i[1])
+
+        print(max_both)
+        return Graph(max_both, links)
+    
+    
 # PageRank算法实现
 def pagerank(graph:Graph):
     N = graph.nnodes # 获取节点数目
@@ -58,6 +79,7 @@ def pagerank(graph:Graph):
         r_new *= TELEPORT
         r_new += (1 - np.sum(r_new)) / N # 表示“随机跳转”部分的 PageRank 值。
         # 计算当前迭代的误差
+        # TODO:范式、收敛值e可改 看能否提高准确度
         e = np.linalg.norm(r_new - r_old, ord=NORM)
         iter += 1
         # 如果误差小于阈值，或者达到了最大迭代次数，就结束迭代
@@ -76,7 +98,7 @@ if __name__ == '__main__':
     print("This is Basic Page Rank")
     
     if setup() == 0:
-        graph = time_test("read_graph", read_graph)
+        graph = time_test("read_graph", load_graph)
 
         result = time_test("pagerank", pagerank, graph)
 
