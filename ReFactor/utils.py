@@ -53,6 +53,7 @@ def save_result(result:dict, filename:str, topn=100):
     with open(filename, 'w', encoding='utf-8') as f:
         for line in result:
             f.write(f"{line[0]:<10}  {line[1]}\n")
+    print("file saved")
         
 def load_result(filename:str):
     _, dumpfile = os.path.split(filename)

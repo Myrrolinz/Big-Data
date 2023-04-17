@@ -4,7 +4,8 @@ from os.path import join
 
 DATA_PATH = join("..", "Data")
 
-DATA_IN = join(DATA_PATH, "data.txt")
+# DATA_IN = join(DATA_PATH, "data.txt")
+DATA_IN = "D:\LessonProjects\Big-Data\Data\data.txt"
 
 DATA_ENCODING = "utf-16"
 
