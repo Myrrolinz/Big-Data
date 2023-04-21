@@ -7,7 +7,7 @@ DATA_PATH = join("..", "Data")
 # DATA_IN = join(DATA_PATH, "data.txt")
 DATA_IN = "D:\LessonProjects\Big-Data\Data\data.txt"
 
-DATA_ENCODING = "utf-16"
+DATA_ENCODING = "utf-8"
 
 RESULT_PATH = join("..", "Results")
 
@@ -15,7 +15,8 @@ MIDDLE_PATH = "Middle"
 
 STANDARD_OUT = join(RESULT_PATH, "networkx.txt")
 
-BASIC_OUT = join(RESULT_PATH, "basic.txt")
+# BASIC_OUT = join(RESULT_PATH, "basic.txt")
+BASIC_OUT = "Results\\basic.txt"
 
 STRIPE_OUT = join(RESULT_PATH, "stripes.txt")
 
@@ -36,7 +37,8 @@ TELEPORT = 0.85
  
 MAX_ITER = 100
 
-EPSILON = 1e-6
+# EPSILON = 1e-6
+EPSILON = 0.0001
 
 NORM = 1
 
