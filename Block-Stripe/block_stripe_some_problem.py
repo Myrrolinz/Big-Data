@@ -5,13 +5,15 @@ import math
 import pickle
 from collections import defaultdict
 
-SAVE_DATA_FOLDER = './Data/Block_data/'
-Directly_REVERSE_MATRIX_FOLDER = './Data/Directly_reverse_marix/'
-RESULT_FOLDER = '../Results/'
+SAVE_DATA_FOLDER = './Results/Block_data/'
+Directly_REVERSE_MATRIX_FOLDER = './Results/Directly_reverse_marix/'
+RESULT_FOLDER = './Results/'
 
-data_txt = '../Data/data.txt'
+data_txt = './Data/data.txt'
+new_data_txt = './Data/new_data.txt'
 pages_txt = './Data/pages.txt'
-result_data_file = './Data/block_stripe_result.data'
+number_txt = './Data/number.txt'
+result_data_file = './Results/block_stripe_result.data'
 top100_result_file = RESULT_FOLDER + 'Block_stripe_result.txt'
 
 
@@ -42,6 +44,38 @@ else:
 if not os.path.exists(RESULT_FOLDER):
     os.makedirs(RESULT_FOLDER)
 
+def preprocessing(data_txt, new_data_txt):
+    # 读取文件并建立节点编号映射关系
+    edges = []
+    with open(data_txt, 'r') as f:
+        for line in f:
+            src, dest = map(int, line.strip().split())
+            if (src, dest) not in edges:
+                edges.append((src, dest))
+    nodes = set()
+    for edge in edges:
+        nodes.add(edge[0])
+        nodes.add(edge[1])
+
+    node_list = sorted(list(nodes))  # 得到排序后的节点列表
+
+    # 建立节点映射字典，将旧id映射为新id
+    node_dict = {}
+    for i, node_id in enumerate(node_list):
+        node_dict[node_id] = i + 1
+
+    # 将边列表中的节点id映射为新id
+    new_edges = []
+    for edge in edges:
+        new_src = node_dict[edge[0]]
+        new_dest = node_dict[edge[1]]
+        new_edges.append((new_src, new_dest))
+    with open(new_data_txt, 'w') as f:
+        for edge in new_edges:
+            new_src = edge[0]
+            new_dest = edge[1]
+            f.write(str(new_src) + " " + str(new_dest) + "\n")
+    return node_dict
 
 def save_data_for_RI(s_matrix, name_count):
     # 排序
@@ -60,34 +94,43 @@ def process_block_data(pages, compute_size, files_of_des, out_of_nodes):
 
     for num in range(k):
         save_file_name = os.path.join(SAVE_DATA_FOLDER, f'{num}.txt')
-        temp_save_dict = {}
-        for des in range(num * compute_size + 1, (num + 1) * compute_size + 1):
-            if des not in files_of_des: 
-                continue
+        temp_save_dict = dict()
+        temp_count = 1
+        while (temp_count % compute_size != 1 or temp_count == 1):
+            des = temp_count + num * compute_size
+            temp_count += 1
+
+            # if reverse_matrix.get(des) is None : continue
+            if des not in list(files_of_des.keys()): continue
+
+            # 定位在哪一个reverse文件里
             des_src_list = []
             for file_number in files_of_des[des]:
-                des_reverse_file = os.path.join(Directly_REVERSE_MATRIX_FOLDER, f'Directly_reverse_{file_number}.txt')
+                des_reverse_file = Directly_REVERSE_MATRIX_FOLDER + 'Directly_reverse_' + str(file_number) + '.txt'
+            
                 with open(des_reverse_file, 'r', encoding='utf-8') as f:
-                    reverse_data = json.load(f)
-                    des_src_list.extend(reverse_data.get(str(des), []))
+                    reverse_data = json.loads(f.read())
+                    if not reverse_data.get(str(des)) is None:
+                        des_src_list.extend(reverse_data[str(des)])
 
             for src in des_src_list:
-                if src not in temp_save_dict:
+                if temp_save_dict.get(src) is None:
+                    # 定位src的d
                     d = out_of_nodes[src]
                     temp_save_dict[src] = [d, [des]]
                 else:
                     temp_save_dict[src][1].append(des)
 
-        temp_save_dict = dict(sorted(temp_save_dict.items(), key=lambda x: x[0]))
+        # 排序并保存
+        temp_save_dict = dict(sorted(temp_save_dict.items(), key=lambda d: d[0], reverse=False))
+
         for key in temp_save_dict:
             temp_save_dict[key][1].sort()
 
         with open(save_file_name, 'w', encoding='utf-8') as out:
-            json.dump(temp_save_dict, out)
+            out.write(json.dumps(temp_save_dict))
 
-        if des >= pages:
-            break
-    
+        if (temp_count + num * compute_size) > pages: break
     print("Block Data Saved")
     
             
@@ -106,14 +149,12 @@ def pre_block(data):
     out_of_nodes = defaultdict(int)
     files_of_des = defaultdict(list)
     current_num_des_nodes = []
-
     # 建立倒排索引
-    with open(data_txt, 'r', encoding='utf-16') as f:
+    with open(data, 'r', encoding='utf-8') as f:
         for line in f:
             src = int(line.split()[0].split()[0], 10)
             des = int(line.split()[1].split()[0], 10)
             pages = max(src, pages, des)
-
             # 记录出度
             out_of_nodes[src] += 1
 
@@ -150,16 +191,14 @@ def pre_block(data):
                 s_matrix[des].append(src)
          # 处理最后一个块
         save_data_for_RI(s_matrix, name_count)
-
+        
         with open(pages_txt, 'w', encoding='utf-8') as pages_file:
             pages_file.write(str(pages))
-        
         # 清空内存
         s_matrix = defaultdict(list)
         current_num_des_nodes = []
     
     print("RevertedIndex Data Saved")
-    
     process_block_data(pages, compute_size, files_of_des, out_of_nodes)
     
     
@@ -181,7 +220,7 @@ def sparse_matrix_multiply(size, N, M):
     with open('./r_old.txt', 'w', encoding='utf-8') as old:
         old.truncate()
     # 初始化 r_old
-    temp = np.full(N, 1/N)
+    temp = np.full(N, 1/N, dtype=np.float64)
     with open('./r_old.txt', 'w', encoding='utf-8') as t:
         for i in temp:
             t.write(str(i) + '\n')
@@ -191,7 +230,7 @@ def sparse_matrix_multiply(size, N, M):
     if N % size != 0:
         K += 1
     print(K)
-    E = pow(10, -9)
+    E = 0.0001 #TODO originally E = 1e-9, maybe still needs modify
 
     while not if_end:
         r_new = np.zeros(size)
@@ -255,7 +294,10 @@ def sparse_matrix_multiply(size, N, M):
         with open('./r_new.txt', 'r', encoding='utf-8') as new:
             with open('./r_old.txt', 'r', encoding='utf-8') as old:
                 for i, j in zip(new, old):
-                    e += abs(float(i)-float(j))
+                    # e += abs(float(i)-float(j))
+                    tmp = abs(float(i)-float(j))
+                    if e < tmp:
+                        e = tmp
 
         with open('./r_new.txt', 'r', encoding='utf-8') as new:
             with open('./r_old.txt', 'w', encoding='utf-8') as old:
@@ -274,43 +316,51 @@ def sparse_matrix_multiply(size, N, M):
                 new.truncate()
 
 if __name__ == '__main__':
-    print("This is %s" % 'Page Rank')
-
-    pre_block(data_txt) # 预处理
+    node_dict = {}
+    node_dict = preprocessing(data_txt, new_data_txt)
+    print("PageRank Block Stripe Begin")
+    pre_block(new_data_txt) # 预处理
     if flag_test:
         with open(pages_txt, 'r', encoding='utf-8') as f:
-            n = f.read()
-        n = int(n, 10)
-        print(n)
-        sparse_matrix_multiply(compute_size, n, SAVE_DATA_FOLDER)
+            N = f.read()
+        N = int(N, 10)
+        print("now max_number is: ",N)
+        sparse_matrix_multiply(compute_size, N, SAVE_DATA_FOLDER)
 
         r = dict()
         count = 1
         with open('./r_new.txt', 'r', encoding='utf-8') as f:
             for i in f:
                 r[count] = float(i.rstrip())
-                print(r[count])
                 count += 1
 
         result = dict()
         result = dict(sorted(r.items(), key=lambda d: d[1], reverse=True))  # 按照rank排序
+        
+        # 将映射字典键值反转
+        reverse_mapping = {v: k for k, v in node_dict.items()}
+        result_original = {}
+        for mapped_node, pagerank in result.items():
+            original_node = reverse_mapping[mapped_node]
+            result_original[original_node] = pagerank
+            
         with open(top100_result_file, 'w', encoding='utf-8') as f:
             count = 0
-            for i in result:
+            for i in result_original:
                 if count<100:
-                    f.write(str(i) + '\t\t' + str(result[i]) + '\n')
+                    f.write(str(i) + '\t\t' + str(result_original[i]) + '\n')
                     count+=1
                 else:
                     break
         
         # 写data文件
         with open(result_data_file, 'wb') as f:
-            pickle.dump(result, f)
+            pickle.dump(result_original, f)
 
-        os.remove('./r_new.txt')
-        os.remove('./r_new_temp.txt')
-        os.remove('./r_old.txt')
-        os.remove(pages_txt)
+        # os.remove('./r_new.txt')
+        # os.remove('./r_new_temp.txt')
+        # os.remove('./r_old.txt')
+        # os.remove(pages_txt)
 
 
     os.system("pause")

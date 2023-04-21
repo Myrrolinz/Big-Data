@@ -6,8 +6,7 @@ from utils import save_result, time_test, read_data, setup
 
 class Graph:
     """
-    用稀疏矩阵来存储数据：src、指向src的边、出度
-    此结构方便计算
+    Using lil matrix: src, in-edges, out-degree
     """
     def __init__(self, nnodes, edges) -> None:
         self.nnodes = nnodes  # number of nodes
