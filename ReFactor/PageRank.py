@@ -86,7 +86,7 @@ def pagerank2_revise(graph: Graph):
             is_isolate[i] = False
         i += 1
     N = count
-    print("number of unique nodes: ".format(N))
+    print("number of unique nodes:{} ".format(count))
 
     # Initializing matrix
     r_old = np.full(graph.nnodes+1, np.float64(1 / N))
