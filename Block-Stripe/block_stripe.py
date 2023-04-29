@@ -51,7 +51,7 @@ def pre_block(data):
     files_of_des = dict()
 
     # 建立倒排索引
-    with open(data_txt, 'r', encoding='utf-16') as f:
+    with open(data_txt, 'r', encoding='utf-8') as f:
         name_count = 0
         for line in f:
             src = int(line.split()[0].split()[0], 10)
