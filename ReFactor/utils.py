@@ -52,7 +52,7 @@ def save_result(result:dict, filename:str, topn=100):
         result = result[:topn] 
     with open(filename, 'w', encoding='utf-8') as f:
         for line in result:
-            f.write(f"{line[0]:<10}  {line[1]}\n")
+            f.write(f"[{line[0]}]    [{line[1]}]\n")
     print("file saved")
         
 def load_result(filename:str):
@@ -80,15 +80,6 @@ def int2bytes(a:int):
 
 def bytes2int(bytes):
     return int.from_bytes(bytes, 'little', signed=True)
-
-# def get_index_map(node_list):
-#     """
-#     map: node_list -> [0, len(node_list))
-#     """
-#     m = {}
-#     for i, e in enumerate(node_list):
-#         m[e] = i
-#     return m
 
 def create_path(path:str, remain=True):
     if os.path.exists(path):
@@ -118,13 +109,6 @@ def setup(stripe:bool=False, remain_blocks:bool=False) -> int:
 
 
 if __name__ == "__main__":
-    # a = {1:2, 3:3, 2:4}  # 2 4 3
-    # b = {1:3, 2:2, 3:5}  # 3 2 5
-    # compare_results(a, b, 2)
-
-    # for data in read_data(DATA_IN, 1):
-    #     print(data)
-    #     print("----")
 
     print(bytes2int(int2bytes(22)))
 

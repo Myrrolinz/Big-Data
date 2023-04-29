@@ -3,6 +3,7 @@ import copy
 from collections import defaultdict
 from config import *
 from utils import save_result, time_test, read_data, setup
+import os
 
 class Graph:
     """
@@ -139,11 +140,6 @@ if __name__ == '__main__':
 
     if setup() == 0:
         graph = time_test("read_graph", load_graph)
-
         result = time_test("pagerank", pagerank2_revise, graph)
-
         save_result(result, BASIC_OUT)
-
-        result = sorted(result.items(), key=lambda x: x[1], reverse=True)
-
-        # os.system("pause")
+        os.system("pause")
