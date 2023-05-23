@@ -1,0 +1,12 @@
+ReFactor
+Exe
+Exe.zip
+.idea
+CF_item/.idea
+__pycache__
+CF_item/Save
+CheckPoints/
+Data/test_uid.txt
+
+LFM/ckpt_files/
+LFM/__pycache__/

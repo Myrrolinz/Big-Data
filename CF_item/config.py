@@ -1,0 +1,22 @@
+import os
+Alg_information = 'Item-Item Collaborative Filtering'
+Data_folder = '../Data'
+Save_path = './Save'
+print_per = 7
+save_per = 9
+topn = 20
+yuzhi = 0
+
+Data_train = os.path.join(Data_folder, 'train.txt')
+Data_itematr = os.path.join(Data_folder, 'itemAttribute.txt')
+Data_test = os.path.join(Data_folder, 'test.txt')
+class_path = os.path.join(Save_path, 'class.pickle')
+
+my_train = os.path.join(Data_folder, 'my_train.txt')
+my_test = os.path.join(Data_folder, 'my_test.txt')
+result_path = os.path.join(Save_path, 'result.txt')
+
+user_class_path = os.path.join(Save_path, 'user.pickle')
+
+if_pre = False
+
