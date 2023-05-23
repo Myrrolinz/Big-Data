@@ -4,23 +4,22 @@ from utils import *
 import math
 import time
 import numpy as np
-from collections import defaultdict
 
 class CF_user():
     def __init__(self, train_p, test_p):
         self.if_build = False
         self.if_train = False
         self.if_test = False
-        self.rating_num = 0  # 总评分数
-        self.user_matrix = defaultdict(dict)  # 存储用户对物品的评分 [{itemid: score,...},...]
+        self.rated_num = 0  # 总评分数
+        self.user_matrix = []  # 存储用户对物品的评分 [{itemid: score,...},...]
         self.user_ave = []  # 用户对物品的评分准则(对物品评分的平均数)[u1,u2,...]
-        self.sim_matrix_user = None  # user 的 相似矩阵（稀疏）lil_matrix
-        self.item_list = set()
-        self.change = dict()
+        self.sim_matrix_user = None  # user 的相似矩阵（稀疏）lil_matrix
+        self.item_list = set() # 物品列表，使用set是为了去重
+        self.inverted_item_list = dict() # 物品列表的反向索引
         self.r = []  # predicted matirx
         self.train_p = train_p
         self.test_p = test_p
-        self.total = 0
+        self.total_sim = 0 # 总相似度数，即相似度矩阵的一半
         self.sim1 = 'sim1.user'
         self.sim2 = 'sim2.user'
         self.mid = 0
@@ -29,25 +28,21 @@ class CF_user():
 
     def static_analyse(self):
         # use after build
-        print(f"user number: {len(self.user_ave)}\nrating number: {self.rating_num}\nitem number: {len(self.item_list)}")
+        print(f"user number: {len(self.user_ave)}")
+        print(f"item number: {len(self.item_list)}")
+        print(f"rated number: {self.rated_num}")
+        print(f"total sim number: {self.total_sim}")
 
     def build(self, path): # 用于构建user的评分矩阵
         print("Building Rating Matrix...")
         user_item = file_read(path) # 读取训练集
-        user_id = None
-        user_item_num = None
         temp_count = 0
         score_count = 0
+        user_id = None
+        user_item_num = None
         for i in user_item:
-            if user_id is None:
-                score_count = 0
-                user_id, user_item_num = [int(j) for j in i.split('|')[:2]]
-                self.rating_num += user_item_num
-                while len(self.user_matrix) < user_id + 1: #user矩阵增长
-                    self.user_ave.append(0)
-                self.rating_num += user_item_num
-                temp_count = 0
-            else:
+            # 大部分行为评分，因此使用is not None来增加hit概率
+            if user_id is not None:
                 now_item, now_score = [int(k) for k in i.split()]
                 self.item_list.add(now_item)
                 score_count += now_score
@@ -56,91 +51,93 @@ class CF_user():
                 if temp_count == user_item_num:
                     self.user_ave[user_id] = score_count / temp_count
                     user_id = None
+            else:
+                score_count = 0
+                user_id, user_item_num = [int(j) for j in i.split('|')[:2]]
+                self.rated_num += user_item_num
+                while len(self.user_matrix) < user_id + 1:
+                    self.user_matrix.append({})
+                    self.user_ave.append(0)
+                temp_count = 0
 
         user_item.close()
         self.item_list = list(self.item_list)
         self.item_list.sort()
         for x in range(len(self.item_list)):
-            self.change[self.item_list[x]] = x
-
+            self.inverted_item_list[self.item_list[x]] = x
         self.if_build = True
-        print("Build Rating Matrix Success!\n")
+        self.total_sim = int((pow(len(self.user_ave), 2)-len(self.user_ave))/2)
+        print("Build Rating Matrix Success!")
 
     def train(self):
         start = time.time()
-        print("%s : start train\n" % (time.asctime(time.localtime(start))))
-        self.total = int((pow(len(self.user_ave), 2)-len(self.user_ave))/2)
+        print(f"Start train at {time.asctime(time.localtime(start))}")
         self.sim_matrix_user = [{} for _ in range(len(self.user_ave))]
         self.now_size = 0
         self.mid = int(len(self.user_ave) / 2)
-
         count = 0
+
+        def calculate_similarity(i, j, item, rirj, ri2, rj2):
+            m1 = self.user_matrix[i][item] - self.user_ave[i]
+            m2 = self.user_matrix[j][item] - self.user_ave[j]
+            rirj += m1 * m2
+            ri2 += pow(m1, 2)
+            rj2 += pow(m2, 2)
+            return rirj, ri2, rj2
+
+        # 遍历所有用户对，计算相似度
         for i in range(len(self.user_ave)):
-            len_i = len(self.user_matrix[i])
-            for j in range(i+1, len(self.user_ave)):
-                len_j = len(self.user_matrix[j])
-                temp1 = 0
-                temp2 = 0
-                temp3 = 0
-                if len_i <= len_j:
+            for j in range(i + 1, len(self.user_ave)):
+                rirj, ri2, rj2 = 0
+                # 由于用户对物品的评分矩阵是稀疏的，因此使用len来判断哪个用户的评分矩阵更稀疏
+                # 而且能够减少计算量
+                if len(self.user_matrix[i]) <= len(self.user_matrix[j]):
                     for item in self.user_matrix[i]:
                         if self.user_matrix[j].get(item) is not None:
-                            m1 = self.user_matrix[i][item] - self.user_ave[i]
-                            m2 = self.user_matrix[j][item] - self.user_ave[j]
-                            temp1 += m1 * m2
-                            temp2 += pow(m1, 2)
-                            temp3 += pow(m2, 2)
-                        else:
-                            continue
+                            r = calculate_similarity(i, j, item, rirj, ri2, rj2)
                 else:
                     for item in self.user_matrix[j]:
                         if self.user_matrix[i].get(item) is not None:
-                            m1 = self.user_matrix[i][item] - self.user_ave[i]
-                            m2 = self.user_matrix[j][item] - self.user_ave[j]
-                            temp1 += m1 * m2
-                            temp2 += pow(m1, 2)
-                            temp3 += pow(m2, 2)
-                        else:
-                            continue
+                            r = calculate_similarity(i, j, item, rirj, ri2, rj2)
 
-                if temp2 == 0 or temp3 == 0:
+                if r[1] == 0 or r[2] == 0:
                     self.sim_matrix_user[i][j] = 0
                     self.sim_matrix_user[j][i] = 0
                 else:
-                    self.sim_matrix_user[i][j] = (temp1 / math.sqrt(temp2 * temp3))
-                    self.sim_matrix_user[j][i] = (temp1 / math.sqrt(temp2 * temp3))
+                    self.sim_matrix_user[i][j] = (r[0] / math.sqrt(r[1] * r[2]))
+                    self.sim_matrix_user[j][i] = self.sim_matrix_user[i][j]
 
                 count += 1
                 if count % pow(10, print_per) == 0:
                     now_time = time.time()
-                    print("%s Now cost %fs  %d / %d" % (time.asctime(time.localtime(now_time)), now_time - start, count, self.total))
+                    print(f"Now time: {time.asctime(time.localtime(now_time))}, batch time: {now_time - start}, {count}/{self.total_sim}")
 
         for i in range(len(self.user_ave)):
+            # 对相似度进行排序，按照相似度从大到小排序
             self.sim_matrix_user[i] = dict(sorted(self.sim_matrix_user[i].items(), key=lambda x: x[1], reverse=True))
 
         now_time = time.time()
-        print("%s begin save" % (time.asctime(time.localtime(now_time))))
+        print(f"Begin save at {time.asctime(time.localtime(now_time))}")
         save_class(self.sim_matrix_user, Save_path, os.path.join(Save_path, 'sim.user'))
-        self.mid = int(len(self.user_ave)/2)
-        temp = []
-        for i in range(self.mid):
-            temp.append(self.sim_matrix_user[i])
-            self.sim_matrix_user[i] = {}
-        save_class(temp, Save_path, os.path.join(Save_path, self.sim1))
-        temp = []
-        for i in range(self.mid, len(self.user_ave)):
-            temp.append(self.sim_matrix_user[i])
-            self.sim_matrix_user[i] = {}
-        save_class(temp, Save_path, os.path.join(Save_path, self.sim2))
+        # temp = []
+        # for i in range(self.mid):
+        #     temp.append(self.sim_matrix_user[i])
+        #     self.sim_matrix_user[i] = {}
+        # save_class(temp, Save_path, os.path.join(Save_path, self.sim1))
+        # temp = []
+        # for i in range(self.mid, len(self.user_ave)):
+        #     temp.append(self.sim_matrix_user[i])
+        #     self.sim_matrix_user[i] = {}
+        # save_class(temp, Save_path, os.path.join(Save_path, self.sim2))
         self.if_train = True
         end = time.time()
-        print('%s Train time cost = %fs' % (time.asctime(time.localtime(end)), end - start))
+        print(f"Now is: {time.asctime(time.localtime(end))}, train time cost is {end - start}.")
 
     def predict(self, user, item_j):
         x = 0
         y = 0
         count = 0
-        item_j = self.change[item_j]
+        item_j = self.inverted_item_list[item_j]
         if self.if_2:
             user = user - self.mid
         for u in self.sim_matrix_user[user]:
@@ -158,7 +155,7 @@ class CF_user():
 
     def test(self, path):
         start = time.time()
-        print("%s : start test\n" % (time.asctime(time.localtime(start))))
+        print(f"Start test at {time.asctime(time.localtime(start))}")
         data = file_read(path)
         user_id = None
         user_item_num = None
@@ -169,7 +166,7 @@ class CF_user():
         for i in data:
             if test_count % 1000 == 0 and test_count != 0:
                 now_time = time.time()
-                print("%s Now cost %fs  %d " % (time.asctime(time.localtime(now_time)), now_time-start, test_count))
+                print(f"Now is: {time.asctime(time.localtime(now_time))}, train time cost is {now_time - start}, test count: {test_count}.")
             if user_id is None:
                 user_id = int(i.split('|')[0], 10)
                 if user_id >= self.mid and (not self.if_2):
@@ -184,7 +181,7 @@ class CF_user():
                 test_count += 1
             else:
                 now_item = int(i.split()[0], 10)
-                if self.change.get(now_item) is None:
+                if self.inverted_item_list.get(now_item) is None:
                     p = self.user_ave[user_id]
                 else:
                     p = self.predict(user_id, now_item)

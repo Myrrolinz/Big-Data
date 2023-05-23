@@ -5,8 +5,7 @@ from user import *
 
 if __name__ == '__main__':
     print(Alg_information)
-    is_retrain = int(input("Please Choose:\t 1. Retrain the model\t 0. Load the model\n \
-        Type 1 or 0\n "), 10)
+    is_retrain = int(input("Please Choose:\t 1. Retrain the model\t 0. Load the model\nType 1 or 0: "))
     if is_retrain == 1:
         model = CF_user(Data_train, Data_test)
         model.build(model.train_p)
@@ -28,10 +27,10 @@ if __name__ == '__main__':
         elif not model.if_test:
             model.test(Data_test)
             save_class(model, Save_path, user_class_path + '.tested')
-    model = load_class(Save_path, user_class_path+'.trained')
-    model.test(Data_test)
-    save_class(model, Save_path, user_class_path + '.tested')
-    model = load_class(Save_path, user_class_path+'.tested')
+    # model = load_class(Save_path, user_class_path+'.trained')
+    # model.test(Data_test)
+    # save_class(model, Save_path, user_class_path + '.tested')
+    # model = load_class(Save_path, user_class_path+'.tested')
     for i in range(len(model.r)):
         for j in range(len(model.r[i])):
             if model.r[i][j][1] < 0:
