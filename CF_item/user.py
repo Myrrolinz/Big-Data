@@ -77,34 +77,35 @@ class CF_user():
         self.mid = int(len(self.user_ave) / 2)
         count = 0
 
-        def calculate_similarity(i, j, item, rirj, ri2, rj2):
+        def calculate_similarity(i, j, item, rirj):
             m1 = self.user_matrix[i][item] - self.user_ave[i]
             m2 = self.user_matrix[j][item] - self.user_ave[j]
             rirj += m1 * m2
-            ri2 += pow(m1, 2)
-            rj2 += pow(m2, 2)
-            return rirj, ri2, rj2
+            return rirj
 
         # 遍历所有用户对，计算相似度
         for i in range(len(self.user_ave)):
             for j in range(i + 1, len(self.user_ave)):
-                rirj, ri2, rj2 = 0
+                rirj = 0
                 # 由于用户对物品的评分矩阵是稀疏的，因此使用len来判断哪个用户的评分矩阵更稀疏
                 # 而且能够减少计算量
+                # 这一步计算有问题
+                ri2 = np.sum([pow(self.user_matrix[i][item] - self.user_ave[i], 2) for item in self.user_matrix[i]])
+                rj2 = np.sum([pow(self.user_matrix[j][item] - self.user_ave[j], 2) for item in self.user_matrix[j]])
                 if len(self.user_matrix[i]) <= len(self.user_matrix[j]):
                     for item in self.user_matrix[i]:
                         if self.user_matrix[j].get(item) is not None:
-                            r = calculate_similarity(i, j, item, rirj, ri2, rj2)
+                            rirj = calculate_similarity(i, j, item, rirj)
                 else:
                     for item in self.user_matrix[j]:
                         if self.user_matrix[i].get(item) is not None:
-                            r = calculate_similarity(i, j, item, rirj, ri2, rj2)
+                            rirj = calculate_similarity(i, j, item, rirj)
 
-                if r[1] == 0 or r[2] == 0:
+                if ri2 == 0 or rj2 == 0:
                     self.sim_matrix_user[i][j] = 0
                     self.sim_matrix_user[j][i] = 0
                 else:
-                    self.sim_matrix_user[i][j] = (r[0] / math.sqrt(r[1] * r[2]))
+                    self.sim_matrix_user[i][j] = (rirj / (math.sqrt(ri2) * math.sqrt(rj2)))
                     self.sim_matrix_user[j][i] = self.sim_matrix_user[i][j]
 
                 count += 1
@@ -144,14 +145,14 @@ class CF_user():
             if self.user_matrix[u].get(item_j) is not None and self.sim_matrix_user[user][u] >= Thresh:
                 count += 1
                 y += self.sim_matrix_user[user][u]
-                x += self.sim_matrix_user[user][u] * self.user_matrix[u][item_j]
+                x += self.sim_matrix_user[user][u] * (self.user_matrix[u][item_j] - self.user_ave[u])
             if count == topn:
                 break
 
         if y == 0:
             return 0
         else:
-            return x / y
+            return x / y + self.user_ave[user]
 
     def test(self, path):
         start = time.time()
