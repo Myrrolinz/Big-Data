@@ -1,27 +1,23 @@
 import os
-
 from config import *
 from utils import *
 import math
 import time
 import numpy as np
+from collections import defaultdict
 
 class CF_user():
     def __init__(self, train_p, test_p):
         self.if_build = False
         self.if_train = False
         self.if_test = False
-        self.rating_num = 0
-        self.user_matrix = []  # 存储用户对物品的评分 [{itemid: score,...},...]
-        # self.item_matrix = []  # 存储物品的属性 [[at1,at2],...]  now useless
+        self.rating_num = 0  # 总评分数
+        self.user_matrix = defaultdict(dict)  # 存储用户对物品的评分 [{itemid: score,...},...]
         self.user_ave = []  # 用户对物品的评分准则(对物品评分的平均数)[u1,u2,...]
-        # self.user_item_index = []  # 索引矩阵[[item1,item2,...],[],...]
-        self.item_user_index = []  # 反向索引[{user: score, ...},...]
         self.sim_matrix_user = None  # user 的 相似矩阵（稀疏）lil_matrix
         self.item_list = set()
         self.change = dict()
         self.r = []  # predicted matirx
-        # self.sim_csr = [[], [], []]  # item 的相似矩阵 使用csr的方式进行压缩 [[row_offset,...], [col,...],[value,...]]
         self.train_p = train_p
         self.test_p = test_p
         self.total = 0
@@ -33,11 +29,11 @@ class CF_user():
 
     def static_analyse(self):
         # use after build
-        print("user number: %d\nrating number: %d\nitem number: %d" %(len(self.user_ave), self.rating_num, len(self.item_list)))
+        print(f"user number: {len(self.user_ave)}\nrating number: {self.rating_num}\nitem number: {len(self.item_list)}")
 
-    def build(self, path):
-        user_item = file_read(path)
-        #item_attribute = file_read(Data_itematr)
+    def build(self, path): # 用于构建user的评分矩阵
+        print("Building Rating Matrix...")
+        user_item = file_read(path) # 读取训练集
         user_id = None
         user_item_num = None
         temp_count = 0
@@ -45,20 +41,14 @@ class CF_user():
         for i in user_item:
             if user_id is None:
                 score_count = 0
-                user_id = int(i.split('|')[0], 10)
-                while len(self.user_matrix) < user_id + 1:
-                    self.user_matrix.append({})
+                user_id, user_item_num = [int(j) for j in i.split('|')[:2]]
+                self.rating_num += user_item_num
+                while len(self.user_matrix) < user_id + 1: #user矩阵增长
                     self.user_ave.append(0)
-                user_item_num = int(i.split('|')[1], 10)
                 self.rating_num += user_item_num
                 temp_count = 0
             else:
-                now_item = int(i.split()[0], 10)
-                while len(self.item_user_index) < now_item + 1:
-                    self.item_user_index.append({})
-
-                now_score = int(i.split()[1], 10)
-                self.item_user_index[now_item][user_id] = now_score
+                now_item, now_score = [int(k) for k in i.split()]
                 self.item_list.add(now_item)
                 score_count += now_score
                 self.user_matrix[user_id][now_item] = now_score
@@ -68,24 +58,13 @@ class CF_user():
                     user_id = None
 
         user_item.close()
-        #print(self.user_matrix)
-
-        # for i in item_attribute:
-        #     item_id = int(i.split('|')[0], 10)
-        #     attribute1 = i.split('|')[1]
-        #     attribute2 = i.split('|')[2]
-        #     while len(self.item_matrix) < item_id + 1:
-        #         self.item_matrix.append([])
-        #     self.item_matrix[item_id].append(attribute1)
-        #     self.item_matrix[item_id].append(attribute2)
-        #
-        # item_attribute.close()
         self.item_list = list(self.item_list)
         self.item_list.sort()
         for x in range(len(self.item_list)):
             self.change[self.item_list[x]] = x
 
         self.if_build = True
+        print("Build Rating Matrix Success!\n")
 
     def train(self):
         start = time.time()
@@ -165,7 +144,7 @@ class CF_user():
         if self.if_2:
             user = user - self.mid
         for u in self.sim_matrix_user[user]:
-            if self.user_matrix[u].get(item_j) is not None and self.sim_matrix_user[user][u] >= yuzhi:
+            if self.user_matrix[u].get(item_j) is not None and self.sim_matrix_user[user][u] >= Thresh:
                 count += 1
                 y += self.sim_matrix_user[user][u]
                 x += self.sim_matrix_user[user][u] * self.user_matrix[u][item_j]

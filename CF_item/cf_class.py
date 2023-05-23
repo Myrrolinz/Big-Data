@@ -1,10 +1,10 @@
 import os
-
 from config import *
 from utils import *
 import math
 import time
 import numpy as np
+import math
 
 class CF():
     def __init__(self, train_p, test_p):
@@ -13,15 +13,12 @@ class CF():
         self.if_test = False
         self.rating_num = 0
         self.user_matrix = []  # 存储用户对物品的评分 [{itemid: score,...},...]
-        # self.item_matrix = []  # 存储物品的属性 [[at1,at2],...]  now useless
-        self.user_ave = []  # 用户对物品的评分准则(对物品评分的平均数)[u1,u2,...]
-        # self.user_item_index = []  # 索引矩阵[[item1,item2,...],[],...]
+        self.user_ave = []  # 用户对物品的评分平均[u1,u2,...]
         self.item_user_index = []  # 反向索引[{user: score, ...},...]
         self.sim_matrix = None  # item 的 相似矩阵（稀疏）lil_matrix
         self.item_list = set()
         self.change = dict()
         self.r = []  # predicted matirx
-        # self.sim_csr = [[], [], []]  # item 的相似矩阵 使用csr的方式进行压缩 [[row_offset,...], [col,...],[value,...]]
         self.train_p = train_p
         self.test_p = test_p
         self.total = 0
@@ -33,7 +30,7 @@ class CF():
 
     def build(self, path):
         user_item = file_read(path)
-        #item_attribute = file_read(Data_itematr)
+        #item_attribute = file_read(Data_itemattr)
         user_id = None
         user_item_num = None
         temp_count = 0
@@ -230,12 +227,6 @@ class CF():
                     ofs = int(item_i*(len(self.item_list)) + item_j - (item_i+1)*(item_i+2)/2)
                 else:
                     ofs = int(item_j * (len(self.item_list)) + item_i - (item_j + 1) * (item_j + 2) / 2)
-
-
-
-
-
-
 
     def new_test(self, path):
         data = file_read(path)
