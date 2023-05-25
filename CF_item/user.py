@@ -89,17 +89,16 @@ class CF_user():
                 rirj = 0
                 # 由于用户对物品的评分矩阵是稀疏的，因此使用len来判断哪个用户的评分矩阵更稀疏
                 # 而且能够减少计算量
-                # 这一步计算有问题
-                ri2 = np.sum([pow(self.user_matrix[i][item] - self.user_ave[i], 2) for item in self.user_matrix[i]])
-                rj2 = np.sum([pow(self.user_matrix[j][item] - self.user_ave[j], 2) for item in self.user_matrix[j]])
+                ri2 = np.sum([math.pow(self.user_matrix[i][item] - self.user_ave[i], 2) for item in self.user_matrix[i]])
+                rj2 = np.sum([math.pow(self.user_matrix[j][item] - self.user_ave[j], 2) for item in self.user_matrix[j]])
                 if len(self.user_matrix[i]) <= len(self.user_matrix[j]):
                     for item in self.user_matrix[i]:
                         if self.user_matrix[j].get(item) is not None:
-                            rirj = calculate_similarity(i, j, item, rirj)
+                            rirj += calculate_similarity(i, j, item, rirj)
                 else:
                     for item in self.user_matrix[j]:
                         if self.user_matrix[i].get(item) is not None:
-                            rirj = calculate_similarity(i, j, item, rirj)
+                            rirj += calculate_similarity(i, j, item, rirj)
 
                 if ri2 == 0 or rj2 == 0:
                     self.sim_matrix_user[i][j] = 0
@@ -120,16 +119,17 @@ class CF_user():
         now_time = time.time()
         print(f"Begin save at {time.asctime(time.localtime(now_time))}")
         save_class(self.sim_matrix_user, Save_path, os.path.join(Save_path, 'sim.user'))
-        # temp = []
-        # for i in range(self.mid):
-        #     temp.append(self.sim_matrix_user[i])
-        #     self.sim_matrix_user[i] = {}
-        # save_class(temp, Save_path, os.path.join(Save_path, self.sim1))
-        # temp = []
-        # for i in range(self.mid, len(self.user_ave)):
-        #     temp.append(self.sim_matrix_user[i])
-        #     self.sim_matrix_user[i] = {}
-        # save_class(temp, Save_path, os.path.join(Save_path, self.sim2))
+        # 由于sim_matrix_user有4G，因此使用两个sim_matrix_user分别保存
+        temp = []
+        for i in range(self.mid):
+            temp.append(self.sim_matrix_user[i])
+            self.sim_matrix_user[i] = {}
+        save_class(temp, Save_path, os.path.join(Save_path, self.sim1))
+        temp = []
+        for i in range(self.mid, len(self.user_ave)):
+            temp.append(self.sim_matrix_user[i])
+            self.sim_matrix_user[i] = {}
+        save_class(temp, Save_path, os.path.join(Save_path, self.sim2))
         self.if_train = True
         end = time.time()
         print(f"Now is: {time.asctime(time.localtime(end))}, train time cost is {end - start}.")
@@ -150,7 +150,7 @@ class CF_user():
                 break
 
         if y == 0:
-            return 0
+            return self.user_ave[user]
         else:
             return x / y + self.user_ave[user]
 
@@ -170,6 +170,7 @@ class CF_user():
                 print(f"Now is: {time.asctime(time.localtime(now_time))}, train time cost is {now_time - start}, test count: {test_count}.")
             if user_id is None:
                 user_id = int(i.split('|')[0], 10)
+                # 由于sim_matrix_user有4G，因此使用两个sim_matrix_user分别加载
                 if user_id >= self.mid and (not self.if_2):
                     del self.sim_matrix_user[:]
                     self.sim_matrix_user = load_class(Save_path, os.path.join(Save_path, self.sim2))
@@ -194,5 +195,13 @@ class CF_user():
         del self.sim_matrix_user[:]
         end = time.time()
         print('%s Test time cost = %fs' % (time.asctime(time.localtime(end)), end - start))
+        with open("./Save/user_avg_new.txt", 'w') as f:
+            for i, r in enumerate(self.user_ave):
+                f.write(str(i) + " "+ str(r) +'\n')
+        with open("./Save/test_rate.txt", 'w') as f:
+            for i in range(len(self.r)):
+                f.write(str(i) + "|6\n")
+                for j in range(len(self.r[i])):
+                    f.write(str(self.r[i][j][0]) + " " + str(rate_modify(self.r[i][j][1])) + "\n")
         self.if_test = True
 

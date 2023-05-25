@@ -32,5 +32,11 @@ def load_class(dir_path, file_path):
         os.mkdir(dir_path)
         print("ERROR you sould save first!")
 
-
+def rate_modify(rate):
+    if rate < 0:
+        return 0
+    elif rate > 100:
+        return 100
+    else:
+        return round(rate)
 
