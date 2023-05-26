@@ -43,3 +43,10 @@ def rate_modify(rate):
     else:
         return round(rate)
 
+def valid_rate(rate):
+    if rate < 0:
+        return 0
+    elif rate > 100:
+        return 100
+    else:
+        return rate

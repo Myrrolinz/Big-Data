@@ -4,12 +4,14 @@ import pandas as pd
 import pickle
 from config import *
 from utils import *
+from split import *
 import math
 from sklearn.metrics import mean_squared_error
 
 
 def cal_RMSE(pred_rate, rate):
-    return (np.sum((np.array(pred_rate) - np.array(rate)) ** 2) / len(rate)) ** 0.5
+    return math.sqrt(mean_squared_error(pred_rate, rate))
+    # return (np.sum((np.array(pred_rate) - np.array(rate)) ** 2) / len(rate)) ** 0.5
 
 class CollaborativeFiltering:
     def __init__(self, train_path, test_path, attribute_path, is_processed=True):
@@ -45,7 +47,7 @@ class CollaborativeFiltering:
         print(f"item number: {i}")
         print(f"rated number: {r}")
         # print(f"total sim number: {len(self.similarity_map)}")
-        
+    
     def load_train_data(self):
         # 以 {item:{user: rate}} 形式存储，保证在划分数据集的时候，训练集能包含所有item项
         user_item = file_read(self.train_path) # 读取训练集
@@ -62,6 +64,7 @@ class CollaborativeFiltering:
                     self.num_of_item += 1
                 self.train_data[item][user] = rate
         self.static_analyse(self.num_of_user, self.num_of_item, self.num_of_rate)
+        file_save(self.train_data, "./Save/train_data.pickle")
         del user_item
 
     def load_test_data(self):
@@ -125,47 +128,6 @@ class CollaborativeFiltering:
         self.item_attributes = item_attributes
         file_save(self.item_attributes, "./Save/item_attributes.pickle")
 
-    def train_test_split(self):
-        # 按照 split_size 定义的比例划分成train与validate数据集，同时保证划分后train中包含所有item
-        # 目的是后续需要计算item与item之间相似度，如果train中不存在则无法计算，影响效果
-        for item, rates in self.train_data.items():
-            for index, (user, score) in enumerate(rates.items()):
-                if index == 0: # 每个item的第一个评分放入train中
-                    self.train_train_data.append([user, item, score])
-                    if item not in self.item_user_train_data:
-                        self.item_user_train_data[item] = {}
-                    self.item_user_train_data[item][user] = score
-                    if user not in self.user_item_train_data:
-                        self.user_item_train_data[user] = {}
-                    self.user_item_train_data[user][item] = score
-                    continue
-                if np.random.rand() < self.split_size: # 如果随机数小于split_size，放入test中
-                    self.train_test_data.append([user, item, score])
-                else: # 放入train
-                    self.train_train_data.append([user, item, score])
-                    if item not in self.item_user_train_data:
-                        self.item_user_train_data[item] = {}
-                    self.item_user_train_data[item][user] = score
-                    if user not in self.user_item_train_data:
-                        self.user_item_train_data[user] = {}
-                    self.user_item_train_data[user][item] = score
-        del self.train_data
-
-        self.train_test_data = pd.DataFrame(data=self.train_test_data, columns=['user', 'item', 'score'])
-        self.train_test_data.to_csv('./Save/train_test.csv')
-        self.train_train_data = pd.DataFrame(data=self.train_train_data, columns=['user', 'item', 'score'])
-        self.train_train_data.to_csv('./Save/train_train.csv')
-        file_save(self.item_user_train_data, "./Save/item_user_train.pickle")
-        file_save(self.user_item_train_data, "./Save/user_item_train.pickle")
-        print("train test data")
-        self.static_analyse(len(self.train_test_data.index.drop_duplicates()),
-                            len(self.train_test_data['item'].drop_duplicates()),
-                            len(self.train_test_data))
-        print("train train data")
-        self.static_analyse(len(self.train_train_data.index.drop_duplicates()),
-                            len(self.train_train_data['item'].drop_duplicates()),
-                            len(self.train_train_data))
-
     def calculate_data_bias(self):
         # 计算全局bias信息
         overall_mean = self.train_train_data['score'].mean()
@@ -179,96 +141,87 @@ class CollaborativeFiltering:
         self.bias["deviation_of_item"] = dict(deviation_of_item)
         file_save(self.bias, "./Save/bias.pickle")
 
-    def fetch_similarity(self, item_x, item_y):
+    def fetch_similarity(self, item_i, item_j):
         similar_item = None
-        if item_x in self.similarity_map and item_y in self.similarity_map[item_x]:
-            similar_item = self.similarity_map[item_x][item_y]
-        elif item_y in self.similarity_map and item_x in self.similarity_map[item_y]:
-            similar_item = self.similarity_map[item_y][item_x]
+        if item_i in self.similarity_map and item_j in self.similarity_map[item_i]:
+            similar_item = self.similarity_map[item_i][item_j]
+        elif item_j in self.similarity_map and item_i in self.similarity_map[item_j]:
+            similar_item = self.similarity_map[item_j][item_i]
         else:
             similar_item = None
         return similar_item
         
-    def calc_similar_item(self, user, item_x):
-        b_x = self.bias["deviation_of_item"][item_x] + self.bias["overall_mean"]
+    def calc_similar_item(self, user, item_i):
+        bias_i = self.bias["deviation_of_item"][item_i] + self.bias["overall_mean"]
         similar_item = {}
         # 计算物品相似度
-        for item_y in self.user_item_train_data[user].keys():
+        for item_j in self.user_item_train_data[user].keys():
             # 如果有在similarity_map中，直接取出
-            similar_item[item_y] = self.fetch_similarity(item_x, item_y)
-            # if item_x in self.similarity_map and item_y in self.similarity_map[item_x]:
-            #     similar_item[item_y] = self.similarity_map[item_x][item_y]
-            # elif item_y in self.similarity_map and item_x in self.similarity_map[item_y]:
-            #     similar_item[item_y] = self.similarity_map[item_y][item_x]
+            similar_item[item_j] = self.fetch_similarity(item_i, item_j)
             # 如果不在similarity_map中，计算相似度
-            if similar_item[item_y] is None:
-                b_y = self.bias["deviation_of_item"][item_y] + self.bias["overall_mean"]
-                if self.item_attributes[item_x][2] == 0 or self.item_attributes[item_y][2] == 0:
+            if similar_item[item_j] is None:
+                bias_j = self.bias["deviation_of_item"][item_j] + self.bias["overall_mean"]
+                if self.item_attributes[item_i][2] == 0 or self.item_attributes[item_j][2] == 0:
                     attribute_similarity = 0
                 else:
                     # attribute 1, attribute 2 相乘后除以范式，以计算属性相似度
-                    attribute_similarity = (self.item_attributes[item_x][0] * self.item_attributes[item_y][0]
-                                            + self.item_attributes[item_x][1] * self.item_attributes[item_y][1]) \
-                                            / (self.item_attributes[item_x][2] * self.item_attributes[item_y][2])
-                norm_x = 0
-                norm_y = 0
-                pearson_similarity = 0
+                    attribute_similarity = (self.item_attributes[item_i][0] * self.item_attributes[item_j][0]
+                                            + self.item_attributes[item_i][1] * self.item_attributes[item_j][1]) \
+                                            / (self.item_attributes[item_i][2] * self.item_attributes[item_j][2])
+                norm_i = 0
+                norm_j = 0
+                sim_ = 0
                 count = 0
                 # 想办法提升性能，不然三个循环太慢了
-                # norm_x = np.sum([math.pow(self.item_user_train_data[item_x][user] - b_x, 2) for user, item in self.item_user_train_data[item_x].items()])
-                norm_y = np.sum([math.pow(self.item_user_train_data[item_y][user] - b_y, 2) for user, item in self.item_user_train_data[item_y].items()])
-                for same_user, score in self.item_user_train_data[item_x].items():
-                    norm_x += math.pow(self.item_user_train_data[item_x][same_user] - b_x, 2)
-                    if same_user not in self.item_user_train_data[item_y]:
+                # norm_i = np.sum([math.pow(self.item_user_train_data[item_i][user] - bias_i, 2) for user, item in self.item_user_train_data[item_i].items()])
+                norm_j = np.sum([math.pow(self.item_user_train_data[item_j][user] - bias_j, 2) for user, item in self.item_user_train_data[item_j].items()])
+                for same_user, score in self.item_user_train_data[item_i].items():
+                    norm_i += math.pow(self.item_user_train_data[item_i][same_user] - bias_i, 2)
+                    if same_user not in self.item_user_train_data[item_j]:
                         continue
                     count += 1
-                    pearson_similarity += (self.item_user_train_data[item_x][same_user] - b_x) \
-                        * (self.item_user_train_data[item_y][same_user] - b_y)
-
+                    sim_ += (self.item_user_train_data[item_i][same_user] - bias_i) \
+                        * (self.item_user_train_data[item_j][same_user] - bias_j)
                 if count < 20:
-                    pearson_similarity = 0
-                if pearson_similarity != 0:
-                    pearson_similarity /= math.sqrt(norm_x * norm_y)
-                similarity = (pearson_similarity + attribute_similarity) / 2
+                    sim_ = 0
+                if sim_ != 0:
+                    sim_ /= math.sqrt(norm_i * norm_j)
+                similarity = (sim_ + attribute_similarity) / 2
                 # 对称填充item_x
-                if item_x not in self.similarity_map:
-                    self.similarity_map[item_x] = {}
-                self.similarity_map[item_x][item_y] = similarity
-                similar_item[item_y] = similarity
+                if item_i not in self.similarity_map:
+                    self.similarity_map[item_i] = {}
+                self.similarity_map[item_i][item_j] = similarity
+                similar_item[item_j] = similarity
         return similar_item
     
     def collaborative_filtering_bias(self):
         # 协同过滤算法，利用train_test_split的数据计算RMSE
         predict_rate = []
         for index, row in enumerate(self.train_test_data.values):
-            user, item_x, pred_score_x = row
-            score_x = 0
-            similar_item = self.calc_similar_item(user, item_x)
-
+            user, item_i, pred_score_x = row
+            rating = 0
+            similar_item = self.calc_similar_item(user, item_i)
             similar_item = sorted(similar_item.items(), key = lambda item: item[1], reverse = True) # 按相似度降序排列
             # 更新bias
-            b_x = self.bias['overall_mean'] + self.bias['deviation_of_item'][item_x] + self.bias['deviation_of_user'][user]
+            bias_i = self.bias['overall_mean'] + self.bias['deviation_of_item'][item_i] + self.bias['deviation_of_user'][user]
             norm = 0
-            for i, (item_y, similarity) in enumerate(similar_item):
+            for i, (item_j, similarity) in enumerate(similar_item):
                 if i > topn: # 可调
                     break
-                b_y = self.bias['overall_mean'] + self.bias['deviation_of_item'][item_y] + self.bias['deviation_of_user'][user]
-                score_x += similarity * (self.item_user_train_data[item_y][user] - b_y)
+                bias_j = self.bias['overall_mean'] + self.bias['deviation_of_item'][item_j] + self.bias['deviation_of_user'][user]
+                rating += similarity * (self.item_user_train_data[item_j][user] - bias_j)
                 norm += similarity
             if norm == 0:
-                score_x = 0
+                rating = 0
             else:
-                score_x /= norm
-            score_x += b_x
-            score_x = score_x if score_x > 0 else 0
-            score_x = score_x if score_x < 100 else 100
-            predict_rate.append(score_x)
+                rating /= norm
+            rating += bias_i
+            # rating = valid_rate(rating)
+            predict_rate.append(valid_rate(rating))
+            # 输出与保存
             if index % 500 == 0 and index != 0:
                 print("已预测", index)
                 print("RMSE: ", math.sqrt(mean_squared_error(predict_rate, self.train_test_data['score'][:index + 1])))
-            if index % 5000 == 0 and index != 0:
-                print("已预测", index)
-                print("RMSE: ", cal_RMSE(predict_rate, self.train_test_data['score'][:index + 1]))
             if index == len(self.train_test_data.values) - 1:
                 file_save(self.similarity_map, "./Save/similarity_map.pickle")
         print("RMSE: ", cal_RMSE(predict_rate, self.train_test_data['score']))
@@ -279,84 +232,84 @@ class CollaborativeFiltering:
         with open('data/result_CF.txt', 'w') as f:
             for user, items in self.test_data.items():
                 buffer += str(user) + "|" + str(len(items)) + '\n'
-                for item_x in items:
-                    buffer += str(item_x) + " "
-                    score_x = 0
-                    if item_x in self.bias["deviation_of_item"]:
-                        b_x = self.bias["deviation_of_item"][item_x] + self.bias["overall_mean"]
+                for item_i in items:
+                    buffer += str(item_i) + " "
+                    rating = 0
+                    if item_i in self.bias["deviation_of_item"]:
+                        bias_i = self.bias["deviation_of_item"][item_i] + self.bias["overall_mean"]
                         similar_item = {}
-                        for item_y in self.user_item_train_data[user].keys():
-                            if item_x in self.similarity_map and item_y in self.similarity_map[item_x]:
-                                similar_item[item_y] = self.similarity_map[item_x][item_y]
-                            elif item_y in self.similarity_map and item_x in self.similarity_map[item_y]:
-                                similar_item[item_y] = self.similarity_map[item_y][item_x]
+                        for item_j in self.user_item_train_data[user].keys():
+                            if item_i in self.similarity_map and item_j in self.similarity_map[item_i]:
+                                similar_item[item_j] = self.similarity_map[item_i][item_j]
+                            elif item_j in self.similarity_map and item_i in self.similarity_map[item_j]:
+                                similar_item[item_j] = self.similarity_map[item_j][item_i]
                             else:
-                                if item_y in self.bias["deviation_of_item"]:
-                                    b_y = self.bias["deviation_of_item"][item_y] + self.bias["overall_mean"]
+                                if item_j in self.bias["deviation_of_item"]:
+                                    bias_j = self.bias["deviation_of_item"][item_j] + self.bias["overall_mean"]
                                 else:
-                                    b_y = self.bias["overall_mean"]
-                                if self.item_attributes[item_x][2] == 0 or self.item_attributes[item_y][2] == 0:
+                                    bias_j = self.bias["overall_mean"]
+                                if self.item_attributes[item_i][2] == 0 or self.item_attributes[item_j][2] == 0:
                                     attribute_similarity = 0
                                 else:
-                                    attribute_similarity = (self.item_attributes[item_x][0] *
-                                                            self.item_attributes[item_y][
+                                    attribute_similarity = (self.item_attributes[item_i][0] *
+                                                            self.item_attributes[item_j][
                                                                 0]
-                                                            + self.item_attributes[item_x][1] *
-                                                            self.item_attributes[item_y][1]) \
-                                                           / (self.item_attributes[item_x][2] *
-                                                              self.item_attributes[item_y][2])
-                                norm_x = 0
-                                norm_y = 0
-                                pearson_similarity = 0
+                                                            + self.item_attributes[item_i][1] *
+                                                            self.item_attributes[item_j][1]) \
+                                                           / (self.item_attributes[item_i][2] *
+                                                              self.item_attributes[item_j][2])
+                                norm_i = 0
+                                norm_j = 0
+                                sim_ = 0
                                 count = 0
-                                if item_x in self.item_user_train_data:
-                                    for same_user, score in self.item_user_train_data[item_x].items():
-                                        if same_user not in self.item_user_train_data[item_y]:
+                                if item_i in self.item_user_train_data:
+                                    for same_user, score in self.item_user_train_data[item_i].items():
+                                        if same_user not in self.item_user_train_data[item_j]:
                                             continue
                                         count += 1
-                                        pearson_similarity += (self.item_user_train_data[item_x][same_user] - b_x) * (
-                                                self.item_user_train_data[item_y][same_user] - b_y)
-                                        norm_x += (self.item_user_train_data[item_x][same_user] - b_x) ** 2
-                                        norm_y += (self.item_user_train_data[item_y][same_user] - b_y) ** 2
+                                        sim_ += (self.item_user_train_data[item_i][same_user] - bias_i) * (
+                                                self.item_user_train_data[item_j][same_user] - bias_j)
+                                        norm_i += (self.item_user_train_data[item_i][same_user] - bias_i) ** 2
+                                        norm_j += (self.item_user_train_data[item_j][same_user] - bias_j) ** 2
                                     if count < 20:
-                                        pearson_similarity = 0
-                                    if pearson_similarity != 0:
-                                        pearson_similarity /= (norm_x * norm_y) ** (1 / 2)
+                                        sim_ = 0
+                                    if sim_ != 0:
+                                        sim_ /= (norm_i * norm_j) ** (1 / 2)
 
-                                similarity = (pearson_similarity + attribute_similarity) / 2
+                                similarity = (sim_ + attribute_similarity) / 2
 
-                                if item_x not in self.similarity_map:
-                                    self.similarity_map[item_x] = {}
-                                self.similarity_map[item_x][item_y] = similarity
+                                if item_i not in self.similarity_map:
+                                    self.similarity_map[item_i] = {}
+                                self.similarity_map[item_i][item_j] = similarity
 
                         similar_item = sorted(similar_item.items(), key=lambda item: item[1], reverse=True)
-                        b_x = self.bias['overall_mean'] + self.bias['deviation_of_item'][item_x] + \
+                        bias_i = self.bias['overall_mean'] + self.bias['deviation_of_item'][item_i] + \
                               self.bias['deviation_of_user'][user]
                         norm = 0
 
-                        for i, (item_y, similarity) in enumerate(similar_item):
+                        for i, (item_j, similarity) in enumerate(similar_item):
                             if i > 100:
                                 break
-                            if item_y in self.bias["deviation_of_item"]:
-                                b_y = self.bias['overall_mean'] + self.bias['deviation_of_item'][item_y] + \
+                            if item_j in self.bias["deviation_of_item"]:
+                                bias_j = self.bias['overall_mean'] + self.bias['deviation_of_item'][item_j] + \
                                       self.bias['deviation_of_user'][user]
                             else:
-                                b_y = self.bias["overall_mean"] + self.bias['deviation_of_user'][user]
-                            score_x += similarity * (self.item_user_train_data[item_y][user] - b_y)
+                                bias_j = self.bias["overall_mean"] + self.bias['deviation_of_user'][user]
+                            rating += similarity * (self.item_user_train_data[item_j][user] - bias_j)
                             norm += similarity
 
                         if norm == 0:
-                            score_x = 0
+                            rating = 0
                         else:
-                            score_x /= norm
+                            rating /= norm
 
-                        score_x += b_x
+                        rating += bias_i
                     else:
-                        score_x = self.bias['overall_mean'] + self.bias['deviation_of_user'][user]
+                        rating = self.bias['overall_mean'] + self.bias['deviation_of_user'][user]
                     index += 1
-                    score_x = score_x if score_x > 0 else 0
-                    score_x = score_x if score_x < 100 else 100
-                    buffer += str(int(score_x)) + '\n'
+                    rating = rating if rating > 0 else 0
+                    rating = rating if rating < 100 else 100
+                    buffer += str(int(rating)) + '\n'
                     if index % 1000 == 0 and index != 0:
                         print("已预测", index)
                         f.write(buffer)
@@ -369,7 +322,14 @@ class CollaborativeFiltering:
             print('Start loading train data')
             self.load_train_data()
             print('Start dividing train data')
-            self.train_test_split()
+            # self.train_test_split()
+            train_test_split()
+            self.train_test_data = pd.read_csv('data/train_test.csv', index_col=0)
+            self.train_train_data = pd.read_csv('data/train_train.csv', index_col=0)
+            with open("data/item_user_train.pickle", 'rb') as f:
+                self.item_user_train_data = pickle.load(f)
+            with open("data/user_item_train.pickle", 'rb') as f:
+                self.user_item_train_data = pickle.load(f)
             print('load and process item attribute')
             self.process_item_attribute()
             print('Start calculating data bias')
