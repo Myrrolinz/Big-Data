@@ -128,6 +128,47 @@ class CollaborativeFiltering:
         self.item_attributes = item_attributes
         file_save(self.item_attributes, "./Save/item_attributes.pickle")
 
+    def train_test_split(self):
+        # 按照 split_size 定义的比例划分成train与validate数据集，同时保证划分后train中包含所有item
+        # 目的是后续需要计算item与item之间相似度，如果train中不存在则无法计算，影响效果
+        for item, rates in self.train_data.items():
+            for index, (user, score) in enumerate(rates.items()):
+                if index == 0: # 每个item的第一个评分放入train中
+                    self.train_train_data.append([user, item, score])
+                    if item not in self.item_user_train_data:
+                        self.item_user_train_data[item] = {}
+                    self.item_user_train_data[item][user] = score
+                    if user not in self.user_item_train_data:
+                        self.user_item_train_data[user] = {}
+                    self.user_item_train_data[user][item] = score
+                    continue
+                if np.random.rand() < self.split_size: # 如果随机数小于split_size，放入test中
+                    self.train_test_data.append([user, item, score])
+                else: # 放入train
+                    self.train_train_data.append([user, item, score])
+                    if item not in self.item_user_train_data:
+                        self.item_user_train_data[item] = {}
+                    self.item_user_train_data[item][user] = score
+                    if user not in self.user_item_train_data:
+                        self.user_item_train_data[user] = {}
+                    self.user_item_train_data[user][item] = score
+        del self.train_data
+
+        self.train_test_data = pd.DataFrame(data=self.train_test_data, columns=['user', 'item', 'score'])
+        self.train_test_data.to_csv('./Save/train_test.csv')
+        self.train_train_data = pd.DataFrame(data=self.train_train_data, columns=['user', 'item', 'score'])
+        self.train_train_data.to_csv('./Save/train_train.csv')
+        file_save(self.item_user_train_data, "./Save/item_user_train.pickle")
+        file_save(self.user_item_train_data, "./Save/user_item_train.pickle")
+        print("train test data")
+        self.static_analyse(len(self.train_test_data.index.drop_duplicates()),
+                            len(self.train_test_data['item'].drop_duplicates()),
+                            len(self.train_test_data))
+        print("train train data")
+        self.static_analyse(len(self.train_train_data.index.drop_duplicates()),
+                            len(self.train_train_data['item'].drop_duplicates()),
+                            len(self.train_train_data))
+
     def calculate_data_bias(self):
         # 计算全局bias信息
         overall_mean = self.train_train_data['score'].mean()
@@ -322,14 +363,7 @@ class CollaborativeFiltering:
             print('Start loading train data')
             self.load_train_data()
             print('Start dividing train data')
-            # self.train_test_split()
-            train_test_split()
-            self.train_test_data = pd.read_csv('data/train_test.csv', index_col=0)
-            self.train_train_data = pd.read_csv('data/train_train.csv', index_col=0)
-            with open("data/item_user_train.pickle", 'rb') as f:
-                self.item_user_train_data = pickle.load(f)
-            with open("data/user_item_train.pickle", 'rb') as f:
-                self.user_item_train_data = pickle.load(f)
+            self.train_test_split()
             print('load and process item attribute')
             self.process_item_attribute()
             print('Start calculating data bias')

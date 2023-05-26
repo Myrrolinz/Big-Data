@@ -23,7 +23,7 @@ def static_analyse(self, u, i, r):
     print(f"item number: {i}")
     print(f"rated number: {r}")
         
-def train_test_split(self):
+def train_test_split():
     # 按照 split_size 定义的比例划分成train与validate数据集，同时保证划分后train中包含所有item
     # 目的是后续需要计算item与item之间相似度，如果train中不存在则无法计算，影响效果
     item_user_train_data = {}
@@ -69,3 +69,4 @@ def train_test_split(self):
                         len(train_train_data['item'].drop_duplicates()),
                         len(train_train_data))
 
+train_test_split()
