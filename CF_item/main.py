@@ -1,6 +1,6 @@
 from config import *
 from utils import *
-from cf_class import *
+from item import *
 from user import *
 
 if __name__ == '__main__':

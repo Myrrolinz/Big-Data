@@ -10,7 +10,10 @@ def file_read(path):
     else:
         print('ERROR: %s does not exit!' % (path,))
 
-
+def file_save(file, path):
+    with open(path, 'wb') as f:
+        pickle.dump(file, f)
+    
 def save_class(c, dir_path, file_path):
     if not os.path.exists(dir_path):
         os.mkdir(dir_path)

@@ -17,7 +17,7 @@ class CF():
         self.item_user_index = []  # 反向索引[{user: score, ...},...]
         self.sim_matrix = None  # item 的 相似矩阵（稀疏）lil_matrix
         self.item_list = set()
-        self.change = dict()
+        self.inverted_item_list = dict()
         self.r = []  # predicted matirx
         self.train_p = train_p
         self.test_p = test_p
@@ -26,11 +26,10 @@ class CF():
 
     def static_analyse(self):
         # use after build
-        print("user number: %d\nrating number: %d\nitem number: %d" %(len(self.user_ave), self.rating_num, len(self.item_list)))
+        print(f"users: {len(self.user_ave)}\nitems: {len(self.item_list)}\nratings: {self.rating_num}")
 
     def build(self, path):
         user_item = file_read(path)
-        #item_attribute = file_read(Data_itemattr)
         user_id = None
         user_item_num = None
         temp_count = 0
@@ -61,27 +60,15 @@ class CF():
                     user_id = None
 
         user_item.close()
-        #print(self.user_matrix)
-
-        # for i in item_attribute:
-        #     item_id = int(i.split('|')[0], 10)
-        #     attribute1 = i.split('|')[1]
-        #     attribute2 = i.split('|')[2]
-        #     while len(self.item_matrix) < item_id + 1:
-        #         self.item_matrix.append([])
-        #     self.item_matrix[item_id].append(attribute1)
-        #     self.item_matrix[item_id].append(attribute2)
-        #
-        # item_attribute.close()
         self.item_list = list(self.item_list)
         self.item_list.sort()
         for x in range(len(self.item_list)):
-            self.change[self.item_list[x]] = x
+            self.inverted_item_list[self.item_list[x]] = x
 
         self.if_build = True
 
-    def get_offset(self, i, j):
-        ofset = int(i*(len(self.item_list)) + j - (i+1)*(i+2)/2)
+    def get_offset(self, i, j): # 计算当前位置在稀疏矩阵中的偏移量
+        ofset = int(i*(len(self.item_list)) + j - (i+1)*(i+2)/2) 
         if ofset / pow(10, save_per) == self.now_sim:
             return ofset - self.now_sim * pow(10, save_per)
         else:
@@ -156,9 +143,9 @@ class CF():
     def predict(self, user, item_j):
         x = 0
         y = 0
-        item_j = self.change[item_j]
+        item_j = self.inverted_item_list[item_j]
         for t in self.user_matrix[user]:
-            item_i = self.change[t]
+            item_i = self.inverted_item_list[t]
             rui = self.user_matrix[user][t]
             if item_i < item_j:
                 sim = self.get_sim(item_i, item_j)
@@ -187,7 +174,7 @@ class CF():
                 temp_count = 0
             else:
                 now_item = int(i.split()[0], 10)
-                if self.change.get(now_item) is None:
+                if self.inverted_item_list.get(now_item) is None:
                     p = -1
                 else:
                     p = self.predict(user_id, now_item)
@@ -201,15 +188,15 @@ class CF():
         p = []
         item_j_list = []
         for item in item_list:
-            if self.change.get(item) is None:
+            if self.inverted_item_list.get(item) is None:
                 p.append(self.user_ave[user_id])
                 item_j_list.append(-1)
             else:
                 p.append([])
-                item_j_list.append(self.change[item])
+                item_j_list.append(self.inverted_item_list[item])
 
         for t in self.user_matrix[user_id]:
-            item_i = self.change[t]
+            item_i = self.inverted_item_list[t]
             rui = self.user_matrix[user_id][t]
             for j in range(len(item_j_list)):
                 if not isinstance(p[j], list):

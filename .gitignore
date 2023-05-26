@@ -10,3 +10,5 @@ Data/test_uid.txt
 
 LFM/ckpt_files/
 LFM/__pycache__/
+*.pickle
+*.csv

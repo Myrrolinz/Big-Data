@@ -1,11 +1,11 @@
 import os
 
 Alg_information = 'Collaborative Filtering'
-Data_folder = '../Data'
-Save_path = './Save'
+Data_folder = 'Data'
+Save_path = './CF/Save'
 print_per = 7
 save_per = 9
-topn = 120
+topn = 500
 Thresh = 0
 
 Data_train = os.path.join(Data_folder, 'train.txt')
