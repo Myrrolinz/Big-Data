@@ -82,10 +82,12 @@ class CF_user():
         for i in range(len(self.user_ave)):
             len_i = len(self.user_matrix[i])
             # print(f"now user {i}")
+            # 节省计算开销
+            ri2 = np.sum([math.pow(self.user_matrix[i][item] - self.user_ave[i], 2) for item in self.user_matrix[i]])
             for j in range(i+1, len(self.user_ave)):
                 len_j = len(self.user_matrix[j])
                 rirj = 0
-                ri2 = np.sum([math.pow(self.user_matrix[i][item] - self.user_ave[i], 2) for item in self.user_matrix[i]])
+                # ri2 = np.sum([math.pow(self.user_matrix[i][item] - self.user_ave[i], 2) for item in self.user_matrix[i]])
                 rj2 = np.sum([math.pow(self.user_matrix[j][item] - self.user_ave[j], 2) for item in self.user_matrix[j]])
                 if len_i <= len_j:
                     for item in self.user_matrix[i]:

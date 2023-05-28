@@ -1,8 +1,8 @@
 import os
 
 Alg_information = 'Collaborative Filtering'
-Data_folder = 'Data'
-Save_path = './CF/Save'
+Data_folder = '../Data'
+Save_path = './Save'
 print_per = 7
 save_per = 9
 topn = 500

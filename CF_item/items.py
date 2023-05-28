@@ -4,7 +4,7 @@ import pandas as pd
 import pickle
 from config import *
 from utils import *
-# from split import *
+from split import *
 import math
 from sklearn.metrics import mean_squared_error
 from collections import defaultdict
@@ -172,15 +172,15 @@ class CollaborativeFiltering:
 
     def calculate_data_bias(self):
         # 计算全局bias信息
-        overall_mean = self.train_train_data['score'].mean()
+        mean = self.train_train_data['score'].mean()
         # 使用groupby计算每个用户和每个商品的bias
-        deviation_of_user = self.train_train_data['score'].groupby(
-            self.train_train_data['user']).mean() - overall_mean
-        deviation_of_item = self.train_train_data['score'].groupby(
-            self.train_train_data.index).mean() - overall_mean
-        self.bias["overall_mean"] = overall_mean
-        self.bias["deviation_of_user"] = dict(deviation_of_user)
-        self.bias["deviation_of_item"] = dict(deviation_of_item)
+        user_bias = self.train_train_data['score'].groupby(
+            self.train_train_data['user']).mean() - mean
+        item_bias = self.train_train_data['score'].groupby(
+            self.train_train_data.index).mean() - mean
+        self.bias["mean"] = mean
+        self.bias["user_bias"] = dict(user_bias)
+        self.bias["item_bias"] = dict(item_bias)
         file_save(self.bias, "./CF_item/Save/bias.pickle")
 
     def fetch_similarity(self, item_i, item_j):
@@ -194,7 +194,7 @@ class CollaborativeFiltering:
         return similar_item
         
     def calc_similar_item(self, user, item_i):
-        bias_i = self.bias["deviation_of_item"][item_i] + self.bias["overall_mean"]
+        bias_i = self.bias["item_bias"][item_i] + self.bias["mean"]
         similar_item = {}
         # 计算物品相似度
         for item_j in self.user_item_train_data[user].keys():
@@ -202,10 +202,10 @@ class CollaborativeFiltering:
             similar_item[item_j] = self.fetch_similarity(item_i, item_j)
             # 如果不在similarity_map中，计算相似度
             if similar_item[item_j] is None:
-                if item_j in self.bias["deviation_of_item"]:
-                    bias_j = self.bias["deviation_of_item"][item_j] + self.bias["overall_mean"]
+                if item_j in self.bias["item_bias"]:
+                    bias_j = self.bias["item_bias"][item_j] + self.bias["mean"]
                 else:
-                    bias_j = self.bias["overall_mean"]
+                    bias_j = self.bias["mean"]
                 if self.item_attributes[item_i][2] == 0 or self.item_attributes[item_j][2] == 0:
                     attribute_similarity = 0
                 else:
@@ -249,12 +249,12 @@ class CollaborativeFiltering:
             similar_item = self.calc_similar_item(user, item_i)
             similar_item = sorted(similar_item.items(), key = lambda item: item[1], reverse = True) # 按相似度降序排列
             # 更新bias
-            bias_i = self.bias['overall_mean'] + self.bias['deviation_of_item'][item_i] + self.bias['deviation_of_user'][user]
+            bias_i = self.bias['mean'] + self.bias['item_bias'][item_i] + self.bias['user_bias'][user]
             norm = 0
             for i, (item_j, similarity) in enumerate(similar_item):
                 if i > topn: # 可调
                     break
-                bias_j = self.bias['overall_mean'] + self.bias['deviation_of_item'][item_j] + self.bias['deviation_of_user'][user]
+                bias_j = self.bias['mean'] + self.bias['item_bias'][item_j] + self.bias['user_bias'][user]
                 rating += similarity * (self.item_user_train_data[item_j][user] - bias_j)
                 norm += similarity
             if norm == 0:
@@ -274,28 +274,25 @@ class CollaborativeFiltering:
 
     def predict(self):
         index = 0
-        buffer = ""
-        buffer = defaultdict(dict)
-        # with open('data/result_CF.txt', 'w') as f:
+        pred_dict = ""
+        pred_dict = defaultdict(dict)
         for user, items in self.test_data.items():
-            buffer[user] = {}
-            # buffer += str(user) + "|" + str(len(items)) + '\n'
+            pred_dict[user] = {}
             for item_i in items:
-                # buffer += str(item_i) + " "
-                buffer[user][item_i] = 0
+                pred_dict[user][item_i] = 0
                 rating = 0
-                if item_i in self.bias["deviation_of_item"]:
+                if item_i in self.bias["item_bias"]:
                     similar_item = self.calc_similar_item(user, item_i)
                     similar_item = sorted(similar_item.items(), key=lambda item: item[1], reverse=True)
-                    bias_i = self.bias['overall_mean'] + self.bias['deviation_of_item'][item_i] + self.bias['deviation_of_user'][user]
+                    bias_i = self.bias['mean'] + self.bias['item_bias'][item_i] + self.bias['user_bias'][user]
                     norm = 0
                     for i, (item_j, similarity) in enumerate(similar_item):
                         if i > topn:
                             break
-                        if item_j in self.bias["deviation_of_item"]:
-                            bias_j = self.bias['overall_mean'] + self.bias['deviation_of_item'][item_j] + self.bias['deviation_of_user'][user]
+                        if item_j in self.bias["item_bias"]:
+                            bias_j = self.bias['mean'] + self.bias['item_bias'][item_j] + self.bias['user_bias'][user]
                         else:
-                            bias_j = self.bias["overall_mean"] + self.bias['deviation_of_user'][user]
+                            bias_j = self.bias["mean"] + self.bias['user_bias'][user]
                         rating += similarity * (self.item_user_train_data[item_j][user] - bias_j)
                         norm += similarity
                     if norm == 0:
@@ -304,23 +301,17 @@ class CollaborativeFiltering:
                         rating /= norm 
                     rating += bias_i
                 else:
-                    rating = self.bias['overall_mean'] + self.bias['deviation_of_user'][user]
+                    rating = self.bias['mean'] + self.bias['user_bias'][user]
                 index += 1
-                # rating = rating if rating > 0 else 0
-                # rating = rating if rating < 100 else 100
-                # buffer += str(int(rating)) + '\n'
-                buffer[user][item_i] = rate_modify(rating)
+                pred_dict[user][item_i] = rate_modify(rating)
                 if index % 1000 == 0 and index != 0:
-                    print("已预测", index)
-                    # f.write(buffer)
-                    # buffer = ""
+                    print("predicted", index)
         with open('./CF_item/Save/result_CF_bias.txt', 'wb') as f:
-            for user, _ in buffer.items():
+            for user, _ in pred_dict.items():
                 f.write(str(user)+'|6\n')
-                for item, score in buffer[user]:
+                for item, score in pred_dict[user]:
                     f.write(str(item)+' '+str(score)+'\n')
-        with open('./CF_item/Save/result_CF_bias.txt', 'a') as f:
-            f.write(buffer)
+        file_save(pred_dict, "./CF_item/Save/result_CF_bias.pickle")
 
     def exec(self):
         if not self.is_processed:
@@ -350,14 +341,14 @@ class CollaborativeFiltering:
             with open("./CF_item/Save/test_data.pickle", 'rb') as f:
                 self.test_data = pickle.load(f)
 
-        # 训练协同过滤模型
+        # train collaborative filtering model
         print('Start collaborative filtering model')
         start = time.time()
         self.collaborative_filtering_bias()
         end = time.time()
         print('Running time: %s Seconds' % (end - start))
 
-        # 加载预训练参数，直接预测
+        # load pre-trained model
         # print('Start predict')
         # start = time.time()
         # self.predict()
