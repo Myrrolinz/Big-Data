@@ -1,5 +1,8 @@
 import numpy as np
 from typing import Union, Tuple, List
+from collections import defaultdict
+from sklearn.metrics import mean_squared_error
+import math
 class EvalUtils:
 
     @staticmethod
@@ -220,37 +223,58 @@ class EvalUtils:
         return rtns
 
 
-def test_RMSE():
-    scores_results = []  # 存储打分值的列表
-    scores_standard = []  # 存储标答的列表
-    with open('/home/cide/Documents/20230509/big/big-data2022-mid-term/LFM/train_result_20.txt', 'r') as file:
+def test_RMSE(path1, path2):
+    scores_results = {}  # 存储打分值的列表
+    scores_standard = {}  # 存储标答的列表
+    # 真值
+    with open(path1, 'r') as file:
         lines = file.readlines()  # 逐行读取文件内容
         for line in lines:
+            line = line.strip()  # 去除行末尾的换行符
             if '|' in line:
+                user, rates_num = [int(i) for i in line.split('|')]  # 提取用户ID和评分数目
+                scores_standard[user] = {}  # 为该用户创建一个空字典
                 continue  # 忽略包含"|"符号的行
-            score = int(line.strip().split()[1])  # 提取打分值（第二个字段）
-            scores_results.append(score)  # 将打分值添加到列表中
-    with open('/home/cide/Documents/20230509/big/big-data2022-mid-term/Data/train.txt', 'r') as file:
+            else: 
+                item, rate = [int(i) for i in line.split()]  # 提取物品ID和评分值
+                scores_standard[user][item] = rate  # 将评分值添加到字典中
+                # scores_results.append(score)  # 将打分值添加到列表中
+    # 预测值
+    with open(path2, 'r') as file:
         lines = file.readlines()  # 逐行读取文件内容
         for line in lines:
+            line = line.strip()  # 去除行末尾的换行符
             if '|' in line:
+                user, rates_num = [int(i) for i in line.split('|')]  # 提取用户ID和评分数目
+                scores_results[user] = {}  # 为该用户创建一个空字典
                 continue  # 忽略包含"|"符号的行
-            score = int(line.strip().split()[1])  # 提取打分值（第二个字段）
-            scores_standard.append(score)  # 将打分值添加到列表中
-
-
+            else:
+                item, rate = line.split()  # 提取物品ID和评分值
+                item = int(item)
+                rate = float(rate)
+                scores_results[user][item] = rate  # 将评分值添加到字典中
+                # scores_standard.append(score)  # 将打分值添加到列表中
+    result_true = []
+    result_pred = []
+    for user, _ in scores_standard.items():
+        for item, score in scores_standard[user].items():
+            result_true.append(int(score))
+            result_pred.append(float(scores_results[user][item]))
     # a = [90, 80, 0, 100, 20, 0, 0]
     # b = [70, 80, 100, 0, 30, 0, 0]
     # arr = np.array([a, a, a])
     # brr = np.array([b, b, b])
+    print(result_true[:10], "\n", result_pred[:10])
+    print(len(result_true))
+    print(len(result_pred))
     arr = np.array(scores_results)
     brr = np.array(scores_standard)
-    r = EvalUtils.RMSE(arr, brr)
+    # r = EvalUtils.RMSE(arr, brr)
+    r = math.sqrt(mean_squared_error(result_true, result_pred))
     print(r)
-
 
 if __name__ == "__main__":
     print(f"This is {__file__}")
     # test_gather_scatter()
-    test_RMSE()
+    test_RMSE("./Data/train_test.txt", "./CF_item/Save/train_test_result.txt")
     # test_evalute()
