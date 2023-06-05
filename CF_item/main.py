@@ -1,7 +1,7 @@
 from config import *
 from utils import *
 from item import *
-from user2 import *
+from user import *
 
 if __name__ == '__main__':
     print(Alg_information)
