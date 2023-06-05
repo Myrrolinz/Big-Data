@@ -2,9 +2,11 @@ ReFactor
 Exe
 Exe.zip
 .idea
-CF_item/.idea
+CF/.idea
+CF/build
+CF/dist
 __pycache__
-CF_item/Save
+CF/Save
 CheckPoints/
 Data/test_uid.txt
 

@@ -65,7 +65,7 @@ class CollaborativeFiltering:
                     self.num_of_item += 1
                 self.train_data[item][user] = rate
         self.static_analyse(self.num_of_user, self.num_of_item, self.num_of_rate)
-        file_save(self.train_data, "./CF_item/Save/train_data.pickle")
+        file_save(self.train_data, "./CF/Save/train_data.pickle")
         del user_item
 
     def load_test_data(self):
@@ -88,7 +88,7 @@ class CollaborativeFiltering:
                     items.append(item)
                 self.test_data[user].append(item)
         self.static_analyse(num_of_user, len(items), num_of_rate)
-        file_save(self.test_data, "./CF_item/Save/test_data.pickle")
+        file_save(self.test_data, "./CF/Save/test_data.pickle")
             
     def process_item_attribute(self):
         attr = file_read(self.attribute_path)
@@ -127,7 +127,7 @@ class CollaborativeFiltering:
         for item, row in self.item_attributes.iterrows():
             item_attributes[item] = [int(row['attribute1']), int(row['attribute2']), row['norm']]
         self.item_attributes = item_attributes
-        file_save(self.item_attributes, "./CF_item/Save/item_attributes.pickle")
+        file_save(self.item_attributes, "./CF/Save/item_attributes.pickle")
 
     def train_test_split(self):
         # 按照 split_size 定义的比例划分成train与validate数据集，同时保证划分后train中包含所有item
@@ -156,11 +156,11 @@ class CollaborativeFiltering:
         del self.train_data
 
         self.train_test_data = pd.DataFrame(data=self.train_test_data, columns=['user', 'item', 'score'])
-        self.train_test_data.to_csv('./CF_item/Save/train_test.csv')
+        self.train_test_data.to_csv('./CF/Save/train_test.csv')
         self.train_train_data = pd.DataFrame(data=self.train_train_data, columns=['user', 'item', 'score'])
-        self.train_train_data.to_csv('./CF_item/Save/train_train.csv')
-        file_save(self.item_user_train_data, "./CF_item/Save/item_user_train.pickle")
-        file_save(self.user_item_train_data, "./CF_item/Save/user_item_train.pickle")
+        self.train_train_data.to_csv('./CF/Save/train_train.csv')
+        file_save(self.item_user_train_data, "./CF/Save/item_user_train.pickle")
+        file_save(self.user_item_train_data, "./CF/Save/user_item_train.pickle")
         print("train test data")
         self.static_analyse(len(self.train_test_data.index.drop_duplicates()),
                             len(self.train_test_data['item'].drop_duplicates()),
@@ -181,7 +181,7 @@ class CollaborativeFiltering:
         self.bias["overall_mean"] = overall_mean
         self.bias["deviation_of_user"] = dict(deviation_of_user)
         self.bias["deviation_of_item"] = dict(deviation_of_item)
-        file_save(self.bias, "./CF_item/Save/bias.pickle")
+        file_save(self.bias, "./CF/Save/bias.pickle")
 
     def fetch_similarity(self, item_i, item_j):
         similar_item = None
@@ -269,7 +269,7 @@ class CollaborativeFiltering:
                 print("已预测", index)
                 print("RMSE: ", math.sqrt(mean_squared_error(predict_rate, self.train_test_data['score'][:index + 1])))
             if index == len(self.train_test_data.values) - 1:
-                file_save(self.similarity_map, "./CF_item/Save/similarity_map.pickle")
+                file_save(self.similarity_map, "./CF/Save/similarity_map.pickle")
         print("RMSE: ", cal_RMSE(predict_rate, self.train_test_data['score']))
 
     def predict(self):
@@ -306,13 +306,13 @@ class CollaborativeFiltering:
                 pred_dict[user][item_i] = rate_modify(rating)
                 if index % 1000 == 0 and index != 0:
                     print("predicted", index)
-        # file_save(pred_dict, "./CF_item/Save/result_CF_bias.pickle")
-        with open('./CF_item/Save/result_CF_bias.txt', 'w') as f:
+        # file_save(pred_dict, "./CF/Save/result_CF_bias.pickle")
+        with open('Results/result_CF_bias.txt', 'w') as f:
             for user, _ in pred_dict.items():
                 f.write(str(user)+'|6\n')
                 for item, score in pred_dict[user].items():
                     f.write(str(item)+' '+str(score)+'\n')
-        # file_save(pred_dict, "./CF_item/Save/result_CF_bias.pickle")
+        # file_save(pred_dict, "./CF/Save/result_CF_bias.pickle")
 
     def exec(self):
         if not self.is_processed:
@@ -327,19 +327,19 @@ class CollaborativeFiltering:
             print('Start loading test data')
             self.load_test_data()
         else:
-            self.train_test_data = pd.read_csv('./CF_item/Save/train_test.csv', index_col=0)
-            self.train_train_data = pd.read_csv('./CF_item/Save/train_train.csv', index_col=0)
-            with open("./CF_item/Save/item_user_train.pickle", 'rb') as f:
+            self.train_test_data = pd.read_csv('./CF/Save/train_test.csv', index_col=0)
+            self.train_train_data = pd.read_csv('./CF/Save/train_train.csv', index_col=0)
+            with open("./CF/Save/item_user_train.pickle", 'rb') as f:
                 self.item_user_train_data = pickle.load(f)
-            with open("./CF_item/Save/user_item_train.pickle", 'rb') as f:
+            with open("./CF/Save/user_item_train.pickle", 'rb') as f:
                 self.user_item_train_data = pickle.load(f)
-            with open("./CF_item/Save/item_attributes.pickle", 'rb') as f:
+            with open("./CF/Save/item_attributes.pickle", 'rb') as f:
                 self.item_attributes = pickle.load(f)
             # with open("data/similarity_map.pickle", 'rb') as f:
             #     self.similarity_map = pickle.load(f)
-            with open("./CF_item/Save/bias.pickle", 'rb') as f:
+            with open("./CF/Save/bias.pickle", 'rb') as f:
                 self.bias = pickle.load(f)
-            with open("./CF_item/Save/test_data.pickle", 'rb') as f:
+            with open("./CF/Save/test_data.pickle", 'rb') as f:
                 self.test_data = pickle.load(f)
 
         # train collaborative filtering model
@@ -362,6 +362,7 @@ if __name__ == '__main__':
         test_path = 'Data/test.txt',
         train_path = 'Data/train.txt',
         attribute_path='Data/itemAttribute.txt',
-        is_processed = True
+        is_processed = False
     )
     test.exec()
+    os.system('pause')

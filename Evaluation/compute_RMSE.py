@@ -276,5 +276,5 @@ def test_RMSE(path1, path2):
 if __name__ == "__main__":
     print(f"This is {__file__}")
     # test_gather_scatter()
-    test_RMSE("./Data/train_test.txt", "./CF_item/Save/train_test_result.txt")
+    test_RMSE("./Data/train_test.txt", "./CF/Save/train_test_result.txt")
     # test_evalute()

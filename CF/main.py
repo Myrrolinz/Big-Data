@@ -27,5 +27,8 @@ if __name__ == '__main__':
         elif not model.if_test:
             model.test(Data_test)
             save_class(model, Save_path, user_class_path + '.tested')
+            
+            
+    os.system('pause')
 
 

@@ -198,7 +198,7 @@ class CF_user():
         with open("./Save/user_avg_new.txt", 'w') as f:
             for i, r in enumerate(self.user_avg):
                 f.write(str(i) + " "+ str(r) +'\n')
-        with open("./Save/test_rate.txt", 'w') as f:
+        with open("Results/result_cf_user.txt", 'w') as f:
             for i in range(len(self.r)):
                 f.write(str(i) + "|6\n")
                 for j in range(len(self.r[i])):

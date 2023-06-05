@@ -1,4 +1,4 @@
-cd .\CF_item
+cd .\CF
 pyinstaller -c -F main.py -p config.py -p utils.py -p cf_class.py -p user.py
 move .\dist\main.exe .\
 rd /s/q .\build
