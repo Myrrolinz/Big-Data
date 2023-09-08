@@ -1,27 +1,46 @@
-# PageRank算法实现
+# NKU Big Data Course
 
-## 目录结构
+This repository is the code for NKU Big Data Course. The assignments consist of two main parts.
 
-```
-├─Block-Stripe             # Block-Stripe方法
-    ├─Data                 # Block-Stripe方法的过程文件
-    ├─block_stripe.py      # Block-Stripe的python脚本
-    └─block_stripe.exe     # Block-Stripe的执行程序
-├─Data              # 数据集目录
-    └─data.txt      # 本次实验使用的数据集，存储格式为utf-16
-├─ReFactor          # 基本Pagerank方法和严格的分块Pagerank方法
-    ├─Middle        # 基本Pagerank方法和严格的分块Pagerank方法的过程文件
-    ├─basic.py      # 基本Pagerank的python脚本
-    ├─basic.exe     # 基本Pagerank的执行程序
-    ├─stripes.py    # 严格的分块Pagerank的python脚本
-    └─stripes.exe   # 严格的分块Pagerank的执行程序
-└─Results                           # 最终结果
-    ├─basic.txt                     # 基本Pagerank生成的最终结果
-    ├─stripes.txt                   # 严格的分块Pagerank生成的最终结果
-    └─Block_stripe_result.txt       # Block-Stripe生成的最终结果
-```
+### Part 1: Page Rank
 
-## 使用方法
-1. 基本Pagerank方法：在`ReFactor`文件夹下运行`basic.exe`
-2. 严格的分块Pagerank方法：在`ReFactor`文件夹下运行`stripes.exe`
-3. Block-Stripe方法：在`Block-Stripe`文件夹下运行`block_stripe.exe`
+Dataset: Data.txt
+
+The format of the lines in the file is as follow:
+
+**FromNodeID ToNodelD**
+
+In this project, you need to report the Top 100 NodelD with their PageRank scores. You can choose different parameters, such as the teleport parameter, to compare different results.
+
+One result you must report is that when setting the teleport parameter to 0.85.
+
+In addition to the basic **PageRank algorithm**, you need to implement the **Block-Stripe Update algorithm**.
+
+### Part 2: Recommendation System
+
+Task: 
+
+Predict the rating scores of the pairs (u, i) in the Test.txt file. 
+
+Dataset (data-202205.zip)： 
+
+(1)	Train.txt, which is used for training your models. 
+
+(2)	Test.txt, which is used for test. 
+
+(3)	ItemAttribute.txt, which is used for training your models (optional). 
+
+(4) ResultForm.txt, which is the form of your result file. 
+
+The formats of datasets are explained in the DataFormatExplanation.txt. 
+
+Note that if you can use ItemAttribute.txt appropriately and improve the performance of the algorithms, **additional points (up to 10)** can be added to your final course score. 
+
+In this project, you need to report the predicted rating scores of the unknown pairs (u, i) in the Test.txt file. You can use any algorithms you have learned from the course or from other resources (such as MOOC). 
+
+One group (consisting of at most three students) needs to write a report about this project. The report should include but not limited to the following contents: 
+
+1. Basic statistics of the dataset (e.g., number of users, number of ratings, number of items, etc); 
+2. Details of the algorithms; 
+3. Experimental results of the recommendation algorithms (RMSE, training time, space consumption); 
+4. Theoretical analysis or/and experimental analysis of the algorithms. 
