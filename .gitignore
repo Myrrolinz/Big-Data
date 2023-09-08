@@ -1,16 +1,1 @@
-ReFactor
-Exe
-Exe.zip
-.idea
-CF/.idea
-CF/build
-CF/dist
-__pycache__
-CF/Save
-CheckPoints/
-Data/test_uid.txt
-
-LFM/ckpt_files/
-LFM/__pycache__/
-*.pickle
-*.csv
+*.exe
